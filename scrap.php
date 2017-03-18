@@ -20,7 +20,7 @@ function processProdQueue($ProdListUrl, $cat_db_id)
 
 
 
-getCatList();
+//getCatList();
 
 
 $query = "SELECT * FROM categories WHERE process = 'yes' AND child=''";
@@ -55,7 +55,7 @@ while($row = $rs->fetch_assoc())
 					$catNoLinkName = $catNoLink['name'];
 					$catNoLinkParent = $catNoLink['parent'];
 					$cat_db_id = insertCat_($catNoLinkName, str_replace(" ", "-", $catNoLinkName), $catNoLinkParent, "yes");
-
+					
 					$dom1b = getCatN($innerCatCode, $catNoLinkId, chooseProxy());
 
 					// If its a product list page <level 3>
@@ -108,7 +108,7 @@ while($row = $rs->fetch_assoc())
 			$catNoLinkName = $catNoLink['name'];
 			$catNoLinkParent = $catNoLink['parent'];
 			$cat_db_id = insertCat_($catNoLinkName, str_replace(" ", "-", $catNoLinkName), $catNoLinkParent, "yes");
-
+			
 			$dom2a = getCatN($cat_code, $catNoLinkId, chooseProxy());
 
 			// If its a product list page <level 3>

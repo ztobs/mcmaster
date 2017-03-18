@@ -796,12 +796,12 @@ function getCatNoLink($dom, $parent)
 
 	foreach ($dom->find('.GroupPrsnttn') as $e_) {
 		$grp_cat_name = $e_->find('.PrsnttnHdrCntnr ',0)->plaintext;
-		$cat_db_id = insertCat_($grp_cat_name, str_replace(" ", "-", $grp_cat_name), $parent, 'grpcat');
-		foreach ($e->find('.AbbrPrsnttn') as $e) {
+		$grp_cat_code = str_replace(" ", "-", $grp_cat_name);
+		insertCat_($grp_cat_name, $grp_cat_code, $parent, 'grpcat');
+		foreach ($e_->find('.AbbrPrsnttn') as $e) {
 			$id = $e->id;
-			$name = $e->find('.PrsnttnHdrCntnr', 0)->plaintext;
-			$parent = $cat_db_id;
-			$nolinkcat[] = array('id'=>$id, 'name'=>$name, 'parent'=>$parent);
+			$name = trim($e->find('.PrsnttnHdrCntnr', 0)->plaintext);
+			$nolinkcat[] = array('id'=>$id, 'name'=>$name, 'parent'=>$grp_cat_code);
 		}
 	}
 		
