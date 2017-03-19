@@ -41,7 +41,7 @@ while($row = $rs->fetch_assoc())
 		foreach ($innerCats as $innerCat) {
 			$innerCatName = $innerCat['name'];
 			$innerCatCode = str_replace("#", "", $innerCat['url']); 
-			insertCat_($innerCatName, $innerCatCode, $cat_code, "yes");
+			$cat_db_id0 = insertCat_($innerCatName, $innerCatCode, $cat_code, "yes");
 
 			$dom1a = getDomSelenium("https://www.mcmaster.com/#".$innerCatCode, chooseProxy());
 			
@@ -56,16 +56,22 @@ while($row = $rs->fetch_assoc())
 					$catNoLinkParent = $catNoLink['parent'];
 					$cat_db_id = insertCat_($catNoLinkName, str_replace(" ", "-", $catNoLinkName), $catNoLinkParent, "yes");
 					
-					$dom1b = getCatN($innerCatCode, $catNoLinkId, chooseProxy());
+					$dom1b = getCatN($innerCatCode, $catNoLinkId);
 
 					// If its a product list page <level 3>
 					$ProdListing = getProductListPage($dom1b);
 					if($ProdListing)
 					{
-						foreach ($ProdListing as $ProdListUrl) {
-							processProdQueue($ProdListUrl, $cat_db_id);
-
+						$filters = getFilters($dom1b);
+						foreach ($ProdListing as $prodd) 
+						{
+							$prodName = $prodd['name'];
+							$prodDesc = $prodd['desc'];
+							$prodImg = $prodd['img'];
+							insertProduct($prodName, $prodDesc, $cat_db_id, $filters, $prodImg);
 						}
+						
+
 					}
 					
 				}
@@ -75,26 +81,15 @@ while($row = $rs->fetch_assoc())
 			$ProdListing = getProductListPage($dom1a);
 			if($ProdListing)
 			{
-				foreach ($ProdListing as $ProdListUrl) {
-					$dom1c = getDomSelenium($ProdListUrl, chooseProxy());
-
-					$prod = getProdParts($dom1c);
-					$prod_name = $prod['name'];
-					$prod_price = $prod['price'];
-					$prod_desc = $prod['description'];
-					$prod_image = $prod['image'];
-					$prod_filters = $prod['filters'];
-
-					if(existProd($prod_name))
-					{
-						insertProdCat($prod_name, $cat_db_id);
-						insertProdFilter($prod_name, $prod_filters);
-					}
-					else
-					{
-						insertProduct($prod_name, $prod_price, $prod_desc, $cat_db_id, implode(",", $prod_filters), $prod_image);
-					}
+				$filters = getFilters($dom1a);
+				foreach ($ProdListing as $prodd)
+				{
+					$prodName = $prodd['name'];
+					$prodDesc = $prodd['desc'];
+					$prodImg = $prodd['img'];
+					insertProduct($prodName, $prodDesc, $cat_db_id0, $filters, $prodImg);
 				}
+				
 			}
 		}
 	}
@@ -109,31 +104,19 @@ while($row = $rs->fetch_assoc())
 			$catNoLinkParent = $catNoLink['parent'];
 			$cat_db_id = insertCat_($catNoLinkName, str_replace(" ", "-", $catNoLinkName), $catNoLinkParent, "yes");
 			
-			$dom2a = getCatN($cat_code, $catNoLinkId, chooseProxy());
+			$dom2a = getCatN($cat_code, $catNoLinkId);
 
 			// If its a product list page <level 3>
 			$ProdListing = getProductListPage($dom2a);
 			if($ProdListing)
 			{
-				foreach ($ProdListing as $ProdListUrl) {
-					$dom2b = getDomSelenium($ProdListUrl, chooseProxy());
-							
-					$prod = getProdParts($dom2b);
-					$prod_name = $prod['name'];
-					$prod_price = $prod['price'];
-					$prod_desc = $prod['description'];
-					$prod_image = $prod['image'];
-					$prod_filters = $prod['filters'];
-
-					if(existProd($prod_name))
-					{
-						insertProdCat($prod_name, $cat_db_id);
-						insertProdFilter($prod_name, $prod_filters);
-					}
-					else
-					{
-						insertProduct($prod_name, $prod_price, $prod_desc, $cat_db_id, implode(",", $prod_filters), $prod_image);
-					}
+				$filters = getFilters($dom2a);
+				foreach ($ProdListing as $prodd)
+				{
+					$prodName = $prodd['name'];
+					$prodDesc = $prodd['desc'];
+					$prodImg = $prodd['img'];
+					insertProduct($prodName, $prodDesc, $cat_db_id, $filters, $prodImg);
 				}
 			}
 			

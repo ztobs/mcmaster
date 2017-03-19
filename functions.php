@@ -544,19 +544,24 @@ function insertFilter($value, $title)
 }
 
 /************/
-function insertProduct($name, $price, $description, $categories, $filters, $image)
+function insertProduct($name, $description, $categories, $filters, $image)
 {
 	global $conn;
 	global $silent;
 	$name = str_replace("'", "", $name);
 	$description = str_replace("'", "", $description);
-	$query = "INSERT INTO products (name, price, description, categories, filters, image) VALUES ('$name', '$price', '$description', '$categories', '$filters', '$image' )";
+	$query = "INSERT INTO products (name, description, categories, filters, image) VALUES ('$name', '$description', '$categories', '$filters', '$image' )";
 	$conn->query($query);
 	if($conn->affected_rows > 0) 
-		{
-			if(!$silent) echo "Product ($name) inserted to db\n";
-			return true;
-		}
+	{
+		if(!$silent) echo "Product ($name) inserted to db\n";
+		return true;
+	}
+	else
+	{
+		insertProdCat($name, $categories);
+		insertProdFilter($name, $filters);
+	}
 }
 
 function insertProdCat($prod_name, $cat_id)
@@ -576,7 +581,7 @@ function insertProdCat($prod_name, $cat_id)
 			$conn->query($query);
 			if($conn->affected_rows > 0) 
 				{
-					if(!$silent) echo "Product Category ($prod_name ==> $cat_id) inserted to db\n";
+					if(!$silent) echo "Update! Product Category ($prod_name ==> $cat_id) inserted to db\n";
 					return true;
 				}
 		}
@@ -584,10 +589,11 @@ function insertProdCat($prod_name, $cat_id)
 	
 }
 
-function insertProdFilter($prod_name, $filter_id_arr)
+function insertProdFilter($prod_name, $filters_str)
 {
 	global $conn;
 	global $silent;
+	$filter_id_arr = explode(",", $filters_str);
 	$query = "SELECT filters FROM products WHERE name='$prod_name'";
 	$rs = $conn->query($query);
 	if($rs->num_rows > 0)
@@ -602,7 +608,7 @@ function insertProdFilter($prod_name, $filter_id_arr)
 		$conn->query($query);
 		if($conn->affected_rows > 0) 
 		{
-			if(!$silent) echo "Product Filter ($prod_name ==> $filter_id) inserted to db\n";
+			if(!$silent) echo "Update! Product Filter ($prod_name ==> $filters_str) inserted to db\n";
 			return true;
 		}
 		
@@ -714,7 +720,7 @@ function processProd($id)
 
 	//echo $url = "https://www.mcmaster.com/#".$id;
 
-	$dom = getDomSelenium($url, chooseProxy());
+	$dom = getDomSelenium($url);
 	//$dom = getDom_($url, true);
 	//writeDom2File($dom, "hello");
 	return $dom;
@@ -765,7 +771,7 @@ function withAbbrNext($id, $abbr)
 	global $session;
 	$url = "https://www.mcmaster.com/".$session."/WebParts/Content/ContentWebPart/ContentWebPart.aspx?cntnrIDtxt=ProdPageContent&srchidtxt=".$id."&cntnrwdth=1111&srchrslttxt=Thermal%20Insulation&PrsnttnUsrInps=[{%22PrsnttnId%22:%22".$abbr."%22}]";
 
-	$dom = getDomSeleniumPre($url, chooseProxy());
+	$dom = getDomSeleniumPre($url);
 	return $dom;
 }
 
@@ -784,16 +790,6 @@ function getSearchId($query)
 
 function getCatNoLink($dom, $parent)
 {
-	/*
-	foreach ($dom->find('.AbbrPrsnttn') as $e) {
-		$id = $e->id;
-		$name = $e->find('.PrsnttnHdrCntnr', 0)->plaintext;
-		$nolinkcat[] = array('id'=>$id, 'name'=>$name);
-	}
-
-	return $nolinkcat;
-	*/
-
 	foreach ($dom->find('.GroupPrsnttn') as $e_) {
 		$grp_cat_name = $e_->find('.PrsnttnHdrCntnr ',0)->plaintext;
 		$grp_cat_code = str_replace(" ", "-", $grp_cat_name);
@@ -843,10 +839,28 @@ function getCatN($parent, $id, $proxy=null)
 
 function getProductListPage($dom)
 {
-	foreach ($dom->find('.PartNbrLnk') as $e) {
-		$urls[] = "https://www.mcmaster.com".$e->href;
+	foreach ($dom->find('.FullPrsnttn') as $e) {
+		$prod_name = trim($e->find('.PrsnttnNm',0)->plaintext);
+		$prod_desc = $e->find('.CpyCntnr',0)->plaintext;
+		$prod_img = $e->find('.ImgCaptionCntnrHover img',0)->src;
+		$prod[] = array("name"=>$prod_name, "desc"=>$prod_desc, "img"=>$prod_img);
 	}
-	return $urls;
+
+	return $prod;
+}
+
+function getFilters($dom)
+{
+	foreach ($dom->find('.SpecSrch_Attribute') as $e) {
+		$title = trim($e->find('.SpecSrch_AttrLabel',0)->plaintext);
+		foreach ($e->find('.SpecSrch_Txt') as $e2) {
+			$value = trim($e2->plaintext);
+			$filter_id = insertFilter($value, $title);
+			$filters[] = $filter_id;
+		}
+	}
+
+	return implode(",", $filters);
 }
 
 
