@@ -5,11 +5,6 @@ include('functions.php');
 
 
 
-function processProdQueue($ProdListUrl, $cat_db_id)
-{
-	
-}
-
 
 								///////////////////////////////////////////////////////////////////////////////////////
 								//////////////////////////////// MAIN OPERATIONS //////////////////////////////////////
@@ -29,22 +24,24 @@ $rs = $conn->query($query);
 while($row = $rs->fetch_assoc())
 //while ($row = ['name'=>'Machine Keys', 'cat_code'=>'machine-keys'])
 {
-	$cat_name = $row['name'];
+	$cat_name = $row['name'];		// eg. Screws & Bolts
 	$cat_code = $row['cat_code'];
 
 	$dom1 = getDomSelenium("https://www.mcmaster.com/#".$cat_code, chooseProxy());
 
 	// If its a category page with link <Level 1>
 	$innerCats = getInnerCat($dom1);
+	hasAbout($dom1, $cat_code);
 	if($innerCats)
 	{
 		foreach ($innerCats as $innerCat) {
-			$innerCatName = $innerCat['name'];
+			$innerCatName = $innerCat['name'];		// eg Standard Socket Head Screws
+
 			$innerCatCode = str_replace("#", "", $innerCat['url']); 
 			$cat_db_id0 = insertCat_($innerCatName, $innerCatCode, $cat_code, "yes");
 
 			$dom1a = getDomSelenium("https://www.mcmaster.com/#".$innerCatCode, chooseProxy());
-			
+			hasAbout($dom1a, $innerCatCode); 
 
 			// If its a category page without link <Level 2>
 			$catNoLinks = getCatNoLink($dom1a, $innerCatCode);
@@ -52,27 +49,44 @@ while($row = $rs->fetch_assoc())
 			{
 				foreach ($catNoLinks as $catNoLink) {
 					$catNoLinkId = $catNoLink['id'];
-					$catNoLinkName = $catNoLink['name'];
+					$catNoLinkName = $catNoLink['name'];		// eg. Alloy Steel Socket Head Screws
+					$catNoLinkCode = str_replace(" ", "-", $catNoLinkName);
 					$catNoLinkParent = $catNoLink['parent'];
-					$cat_db_id = insertCat_($catNoLinkName, str_replace(" ", "-", $catNoLinkName), $catNoLinkParent, "yes");
+					$catNoLinkShortDesc = $catNoLink['short_desc'];
+					$cat_db_id = insertCat_($catNoLinkName, $catNoLinkCode, $catNoLinkParent, "yes", null, $catNoLinkShortDesc );
+					hasParentCatDesc($dom1a, $catNoLinkParent);
 					
-					$dom1b = getCatN($innerCatCode, $catNoLinkId);
-
-					// If its a product list page <level 3>
-					$ProdListing = getProductListPage($dom1b);
-					if($ProdListing)
+					//if(!isProcessed($catNoLinkName))
+					if(true)
 					{
-						$filters = getFilters($dom1b);
-						foreach ($ProdListing as $prodd) 
-						{
-							$prodName = $prodd['name'];
-							$prodDesc = $prodd['desc'];
-							$prodImg = $prodd['img'];
-							insertProduct($prodName, $prodDesc, $cat_db_id, $filters, $prodImg);
-						}
-						
+						if($seleProxy) $dom1b = getCatN($innerCatCode, $catNoLinkId, chooseProxy());
+						else $dom1b = getCatN($innerCatCode, $catNoLinkId);
 
+						hasAbout($dom1b, $catNoLinkCode);
+
+						// If its a product list page <level 3>
+						$ProdListing = getProductListPage($dom1b);
+						if($ProdListing)
+						{
+							$filters = getFilters($dom1b);
+							foreach ($ProdListing as $prodd) 
+							{
+								$prodName = $prodd['name'];
+								$prodDesc = $prodd['desc'];
+								$prodImg = $prodd['img'];
+								insertProduct($prodName, $prodDesc, $cat_db_id, $filters, $prodImg);
+								hasParentCatDesc($dom1b, $catNoLinkCode);
+							}
+							
+
+						}
 					}
+					else
+					{
+						echo "Skipped!!\n";
+						break;
+					}
+					
 					
 				}
 			}
@@ -88,6 +102,7 @@ while($row = $rs->fetch_assoc())
 					$prodDesc = $prodd['desc'];
 					$prodImg = $prodd['img'];
 					insertProduct($prodName, $prodDesc, $cat_db_id0, $filters, $prodImg);
+					hasParentCatDesc($dom1a, $cat_code);
 				}
 				
 			}
@@ -101,24 +116,40 @@ while($row = $rs->fetch_assoc())
 		foreach ($catNoLinks as $catNoLink) {
 			$catNoLinkId = $catNoLink['id'];
 			$catNoLinkName = $catNoLink['name'];
+			$catNoLinkCode = str_replace(" ", "-", $catNoLinkName);
 			$catNoLinkParent = $catNoLink['parent'];
-			$cat_db_id = insertCat_($catNoLinkName, str_replace(" ", "-", $catNoLinkName), $catNoLinkParent, "yes");
-			
-			$dom2a = getCatN($cat_code, $catNoLinkId);
+			$catNoLinkShortDesc = $catNoLink['short_desc'];
+			$cat_db_id = insertCat_($catNoLinkName, $catNoLinkCode, $catNoLinkParent, "yes", null, $catNoLinkShortDesc);
+			hasParentCatDesc($dom1, $cat_code);
 
-			// If its a product list page <level 3>
-			$ProdListing = getProductListPage($dom2a);
-			if($ProdListing)
+			if(!isProcessed($cat_name))
 			{
-				$filters = getFilters($dom2a);
-				foreach ($ProdListing as $prodd)
+				if($seleProxy) $dom2a = getCatN($cat_code, $catNoLinkId, chooseProxy());
+				else  $dom2a = getCatN($cat_code, $catNoLinkId);
+
+				hasAbout($dom2a, $catNoLinkName);
+
+				// If its a product list page <level 3>
+				$ProdListing = getProductListPage($dom2a);
+				if($ProdListing)
 				{
-					$prodName = $prodd['name'];
-					$prodDesc = $prodd['desc'];
-					$prodImg = $prodd['img'];
-					insertProduct($prodName, $prodDesc, $cat_db_id, $filters, $prodImg);
+					$filters = getFilters($dom2a);
+					foreach ($ProdListing as $prodd)
+					{
+						$prodName = $prodd['name'];
+						$prodDesc = $prodd['desc'];
+						$prodImg = $prodd['img'];
+						insertProduct($prodName, $prodDesc, $cat_db_id, $filters, $prodImg);
+						hasParentCatDesc($dom2a, $catNoLinkCode);
+					}
 				}
 			}
+			else
+			{
+				echo "skipped!!\n";
+				break;
+			}
+			
 			
 		}
 	}

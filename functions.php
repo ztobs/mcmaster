@@ -7,14 +7,14 @@ use Facebook\WebDriver\WebDriverBy;
 require_once('vendor/autoload.php');
 
 //error_reporting(E_ALL & ~E_NOTICE);
-//error_reporting(0);
+error_reporting(0);
 
 include('lib/simple_html_dom.php');
 
 //$input = array("mv1487192648", "Morpheus", "Trinity", "Cypher", "Tank");
 //$rand_keys = array_rand($input, 2);
 
-$session = "mv1489684848";
+$session = "mv1490296384";
 
 $host = "127.0.0.1";
 $user = "root";
@@ -38,6 +38,7 @@ $proxyauth = "73290:s6yk2BpCu";
 //$userauth = "";
 $removeBadProxy = false;
 $useProxy = true;
+$seleProxy = false;
 $solverCaptcha = false;
 
 
@@ -52,13 +53,15 @@ function getDomSelenium($url, $proxy=null)
 
 	$capabilities = DesiredCapabilities::chrome();
 	//$capabilities->setCapability('acceptSslCerts', true);
-	/*$capabilities->setCapability('proxy', [
-											        'proxyType' => 'manual',
-											        'httpProxy' => $proxy,
-											        'sslProxy' => $proxy
-											        ]);
-											        */
-	$driver = RemoteWebDriver::create($host, $capabilities, 120 * 1000, 120 * 1000);
+	if($proxy)
+	{
+		$capabilities->setCapability('proxy', [
+											    'proxyType' => 'manual',
+											    'httpProxy' => $proxy,
+											    'sslProxy' => $proxy
+											  ]);
+	}
+	$driver = RemoteWebDriver::create($host, $capabilities, 1000 * 1000, 1000 * 1000);
 	//$driver->get("https://www.mcmaster.com/");
 	$driver->get($url);
 	$page = $driver->getPageSource();
@@ -504,11 +507,11 @@ function existProd($name)
 	}
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-function insertCat($name, $code, $parent=null)
+function insertCat($name, $code, $parent=null, $short_desc=null, $desc=null, $about=null)
 {
 	global $conn;
 	global $silent;
-	$query = "INSERT INTO categories (name, parent, cat_code) VALUES ('$name', '$parent', '$code')";
+	$query = "INSERT INTO categories (name, parent, cat_code, short_description, description, about) VALUES ('$name', '$parent', '$code', '$short_desc', '$desc', '$about' )";
 	$conn->query($query);
 	if($conn->affected_rows > 0)
 		{
@@ -520,6 +523,60 @@ function insertCat($name, $code, $parent=null)
 		return existCat($code);
 	}
 }
+
+function updateCatAbout($code, $about)
+{
+	global $conn;
+	global $silent;
+	
+	$query = "SELECT * FROM categories WHERE about LIKE '%$about%' AND cat_code = '$code' ";
+	$rs = $conn->query($query);
+	if($rs->num_rows > 0)
+	{
+		$row = $rs->fetch_assoc();
+		$about_db = $row['$about'];
+		if(strrpos($about_db, $about) !== false) // it its contains
+		{
+			$about = $about_db;
+		}
+		else
+		{
+			$about = $about_db." ".$about;
+		}
+	}
+	$query = "UPDATE categories SET about = '$about' WHERE cat_code = '$code' ";
+	$conn->query($query);
+	if($conn->affected_rows > 0) return true;
+	
+}
+
+
+function updateParentCatDesc($code, $description)
+{
+	global $conn;
+	global $silent;
+	
+	$query = "SELECT * FROM categories WHERE description LIKE '%$description%' AND cat_code = '$code' ";
+	$rs = $conn->query($query);
+	if($rs->num_rows > 0)
+	{
+		$row = $rs->fetch_assoc();
+		$description_db = $row['$description'];
+		if(strrpos($about_db, $description) !== false) // it its contains
+		{
+			$description = $description_db;
+		}
+		else
+		{
+			$description = $description_db." ".$description;
+		}
+	}
+	$query = "UPDATE categories SET description = '$description' WHERE cat_code = '$code' ";
+	$conn->query($query);
+	if($conn->affected_rows > 0) return true;
+	
+}
+
 
 function insertFilter($value, $title)
 {
@@ -589,6 +646,7 @@ function insertProdCat($prod_name, $cat_id)
 	
 }
 
+
 function insertProdFilter($prod_name, $filters_str)
 {
 	global $conn;
@@ -616,12 +674,13 @@ function insertProdFilter($prod_name, $filters_str)
 	}
 }
 
+
 //////////////////////////////////////////////// Special /////////////////////////////////////////////////////////////////
-function insertCat_($name, $code, $parent, $child=null, $process=null)  
+function insertCat_($name, $code, $parent, $child=null, $process=null, $short_desc=null)  
 {
 	global $conn;
 	global $silent;
-	$query = "INSERT INTO categories (name, parent, cat_code, child, process) SELECT '$name', id, '$code', '$child', '$process' FROM categories WHERE cat_code='$parent'";
+	$query = "INSERT INTO categories (name, parent, cat_code, child, process, short_description ) SELECT '$name', id, '$code', '$child', '$process', '$short_desc' FROM categories WHERE cat_code='$parent'";
 	$conn->query($query);
 	if($conn->affected_rows > 0)
 		{
@@ -632,6 +691,17 @@ function insertCat_($name, $code, $parent, $child=null, $process=null)
 	{
 		return existCat($code);
 	}
+}
+
+
+
+function isProcessed($name)
+{
+	global $conn;
+	global $silent;
+	$query = "SELECT * FROM products WHERE name = '$name'";
+	$rs = $conn->query($query);
+	if($rs->num_rows > 0) return true;
 }
 
 
@@ -699,11 +769,6 @@ function searchType1($id, $query)
 }
 
 
-
-
-
-
-
 function getProdList($dom)
 {
 	foreach ($dom->find('.PartNbrLnk') as $e) {
@@ -720,9 +785,9 @@ function processProd($id)
 
 	//echo $url = "https://www.mcmaster.com/#".$id;
 
-	$dom = getDomSelenium($url);
-	//$dom = getDom_($url, true);
-	//writeDom2File($dom, "hello");
+	if ($seleProxy == true) $dom = getDomSelenium($url, chooseProxy());
+	else $dom = getDomSelenium($url);
+	
 	return $dom;
 }
 
@@ -797,7 +862,8 @@ function getCatNoLink($dom, $parent)
 		foreach ($e_->find('.AbbrPrsnttn') as $e) {
 			$id = $e->id;
 			$name = trim($e->find('.PrsnttnHdrCntnr', 0)->plaintext);
-			$nolinkcat[] = array('id'=>$id, 'name'=>$name, 'parent'=>$grp_cat_code);
+			$short_desc = $e->find('.PrsnttnCpy', 0)->plaintext;
+			$nolinkcat[] = array('id'=>$id, 'name'=>$name, 'short_desc'=>$short_desc, 'parent'=>$grp_cat_code);
 		}
 	}
 		
@@ -821,16 +887,20 @@ function getCatN($parent, $id, $proxy=null)
 	
 	$capabilities = DesiredCapabilities::chrome();
 	//$capabilities->setCapability('acceptSslCerts', true);
-	/*$capabilities->setCapability('proxy', [
-											        'proxyType' => 'manual',
-											        'httpProxy' => $proxy,
-											        'sslProxy' => $proxy
-											        ]);
-											        */
-	$driver = RemoteWebDriver::create($host, $capabilities, 120 * 1000, 120 * 1000);
+	if($proxy)
+	{
+		$capabilities->setCapability('proxy', [
+											    'proxyType' => 'manual',
+											    'httpProxy' => $proxy,
+											    'sslProxy' => $proxy
+											  ]);
+	}
+	
+											        
+	$driver = RemoteWebDriver::create($host, $capabilities, 1000 * 1000, 1000 * 1000);
 	$driver->get("https://www.mcmaster.com/#".$parent);
 	$driver->findElement(WebDriverBy::id($id))->click();
-	sleep(4);
+	sleep(7);
 	$page = $driver->getPageSource();
 	$dom = str_get_html($page);
 	$driver->close();
@@ -841,8 +911,11 @@ function getProductListPage($dom)
 {
 	foreach ($dom->find('.FullPrsnttn') as $e) {
 		$prod_name = trim($e->find('.PrsnttnNm',0)->plaintext);
-		$prod_desc = $e->find('.CpyCntnr',0)->plaintext;
-		$prod_img = $e->find('.ImgCaptionCntnrHover img',0)->src;
+		$prod_desc = $e->find('.CpyCntnr',0)->outertext;
+		foreach ($e->find('.ImgCaptionCntnrHover img') as $im) {
+			$w_im[] = $im->src;
+		}
+		if($w_im) $prod_img = implode(";", $w_im);
 		$prod[] = array("name"=>$prod_name, "desc"=>$prod_desc, "img"=>$prod_img);
 	}
 
@@ -885,4 +958,26 @@ function getProdParts($dom)
 		echo "An error was caught on childnode \n";
 	}
 	
+}
+
+
+function hasAbout($dom, $cat_code)
+{
+	global $session;
+	foreach ($dom->find('.AboutBox') as $e) {
+		$about_code = str_replace("Abbr_", "", $e->id);
+		$url = "https://www.mcmaster.com/".$session."/WebParts/Content/PrsnttnWebPart/PrsnttnWebPart.aspx?srchid=0&prsnttnid=".$about_code."&scrnwdth=1129&displtyp=full&listind=false&cpyind=true";
+		$dom = explode("}", getDom9($url, false));
+		$about .= $dom[1];
+	}
+	
+	if($about) updateCatAbout($cat_code, $about);
+	
+}
+
+function hasParentCatDesc($dom, $cat_code)
+{
+	global $session;
+	$desc = $dom->find('.FullPrsnttn .CpyCntnr',0)->outertext;
+	if($desc) updateParentCatDesc($cat_code, $desc);
 }
