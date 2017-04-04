@@ -122,7 +122,8 @@ while($row = $rs->fetch_assoc())
 			$cat_db_id = insertCat_($catNoLinkName, $catNoLinkCode, $catNoLinkParent, "yes", null, $catNoLinkShortDesc);
 			hasParentCatDesc($dom1, $cat_code);
 
-			if(!isProcessed($cat_name))
+			//if(!isProcessed($cat_name))
+			if(true)
 			{
 				if($seleProxy) $dom2a = getCatN($cat_code, $catNoLinkId, chooseProxy());
 				else  $dom2a = getCatN($cat_code, $catNoLinkId);
